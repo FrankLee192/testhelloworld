@@ -1,0 +1,290 @@
+const url = "https://checkout.eazypaytech.net";
+let payNo = null
+const queryAmount = (payNo, rn) => {
+    loading.show();
+    const options = [
+        {
+            id: 'paytmmp',
+            name: "PayTm",
+            icon: "images/paytm.png",
+        },
+        {
+            id: 'phonepe',
+            name: "Phonepe",
+            icon: "images/phonepe.png",
+            def: true
+        },
+        {
+            id: 'gpay',
+            name: "GooglePay",
+            icon: "images/gpay.png",
+        },
+        {
+            id: 'upi',
+            name: "Other UPI",
+            icon: "images/other.png",
+        },
+    ];
+    return fetch(url + "/trade/link/vo?payNo=" + payNo + "&RN=" + rn)
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.code !== "10000") {
+                alert(data.msg);
+                return;
+            }
+            let op = options
+            if (data.data.payChannels) {
+                const payChannels = JSON.parse(data.data.payChannels);
+                if (payChannels) {
+                    op = options.filter(e => {
+                        return payChannels.includes(e.name)
+                    })
+                }
+            }
+
+            return {
+                amount: data.data.amount,
+                currency: "₹",
+                otherUrls: op,
+                link: data.data.tradeLink,
+            };
+        })
+        .catch((error) => {
+            console.log(error);
+            return {
+                amount: 0,
+                currency: "₹",
+                otherUrls: options,
+            };
+        }).finally(() => {
+            loading.hide();
+        });
+};
+
+function report(payType) {
+    const params = new URLSearchParams({
+        payNo: payNo,
+        payType: payType
+    });
+    fetch(url + "/pay/report?" + params.toString(), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+    }).then(r => console.log(r))
+}
+
+function inPage(link, payNo) {
+
+    fetch(url + "/pay/inPage", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            payNo: payNo,
+            upiLink: link,
+            details: getDetails()
+        })
+    }).then(r => console.log(r))
+}
+
+function getDetails() {
+    return {
+        navigator: {
+            userAgent: navigator.userAgent,
+            language: navigator.language,
+            languages: navigator.languages,
+            platform: navigator.platform,
+            hardwareConcurrency: navigator.hardwareConcurrency,
+            deviceMemory: navigator.deviceMemory,
+            onLine: navigator.onLine,
+            geolocation: navigator.geolocation,
+            vendor: navigator.vendor,
+
+        },
+        performance: {
+            now: performance.now(),
+            timing: performance.getEntriesByType('navigation'),
+        },
+        referrer: document.referrer,
+        linkType: 'cf',
+        timestamp: Date.now(),
+        timezoneOffset: new Date().getTimezoneOffset()
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    payNo = urlParams.get("payNo");
+    const rn = urlParams.get("RN");
+    queryAmount(payNo, rn).then((res) => {
+        if (res.link.startsWith("http")) {
+            window.location.href = res.link;
+        }
+        initPaymentPage(res);
+        inPage(res.link, payNo)
+    });
+
+    // Select all payment options
+    const paymentOptions = document.querySelectorAll(".payment-option");
+
+    // Add click event listener to payment options
+    paymentOptions.forEach((option) => {
+        option.addEventListener("click", () => {
+            // Remove selected class from all options
+            paymentOptions.forEach((opt) => opt.classList.remove("selected"));
+            // Add selected class to clicked option
+            option.classList.add("selected");
+        });
+    });
+
+    // Add click event listener to pay button
+    const payButton = document.getElementById("pay-button");
+    payButton.addEventListener("click", handlePayment);
+});
+
+/**
+ * Initialize the payment page with configuration
+ * @param {Object} config - Payment configuration object
+ */
+function initPaymentPage(config) {
+    // Set payment amount
+    const paymentAmount = document.getElementById("payment-amount");
+    paymentAmount.textContent = `${config.currency}${config.amount.toFixed(2)}`;
+
+    // Generate other payment options from config
+    generateOtherPaymentOptions(config.otherUrls, config.link);
+}
+
+/**
+ * Generate additional payment options from config
+ * @param {Array} otherUrls - Array of other payment URLs
+ */
+function generateOtherPaymentOptions(otherUrls, link) {
+    const otherOptionsContainer = document.getElementById(
+        "other-payment-options"
+    );
+
+    otherUrls.forEach((option, index) => {
+        const optionElement = document.createElement("div");
+        optionElement.className = "payment-option";
+        optionElement.setAttribute("data-url", link);
+        optionElement.setAttribute("data-name", option.name);
+        optionElement.setAttribute("data-index", index);
+        optionElement.setAttribute("data", option.id);
+        if (option.def) {
+            optionElement.classList.add("selected");
+        }
+        optionElement.innerHTML = `
+            <div class="payment-icon">
+                <img src="${option.icon}" alt="${option.name}">
+            </div>
+            <div class="payment-name">${option.name}</div>
+        `;
+
+        // Add event listener to this new option
+        optionElement.addEventListener("click", () => {
+            const allOptions = document.querySelectorAll(".payment-option");
+            allOptions.forEach((opt) => opt.classList.remove("selected"));
+            optionElement.classList.add("selected");
+        });
+
+        otherOptionsContainer.appendChild(optionElement);
+    });
+}
+
+/**
+ * Global loading control functions
+ */
+const loading = {
+    /**
+     * Show the loading overlay
+     */
+    show: function () {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        loadingOverlay.classList.add('visible');
+    },
+
+    /**
+     * Hide the loading overlay
+     */
+    hide: function () {
+        const loadingOverlay = document.getElementById('loading-overlay');
+        loadingOverlay.classList.remove('visible');
+    }
+};
+
+/**
+ * Handle payment button click
+ */
+async  function handlePayment() {
+    const selectedOption = document.querySelector(".payment-option.selected");
+
+    if (!selectedOption) {
+        alert("Please select a payment method");
+        return;
+    }
+
+    // Show loading before payment processing
+    loading.show();
+
+    let payType = selectedOption.getAttribute("data");
+
+    // Handle other payment URLs
+    let paymentUrl = selectedOption.getAttribute("data-url");
+
+    // Call upiExchangeV2 and update paymentUrl
+    try {
+        paymentUrl = await upiExchangeV2(payType) ?? paymentUrl;
+    } catch (error) {
+        console.error("Error during UPI exchange:", error);
+        alert("Failed to process payment. Please try again.");
+        loading.hide();
+        return;
+    }
+    if (paymentUrl.startsWith("http")) {
+        // 如果是 http 开头，进行页面跳转
+        window.location.href = paymentUrl;
+    } else {
+        // 否则，按原来的处理方式
+        const u = navigator.userAgent;
+        const isIos = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
+        paymentUrl = paymentUrl.replace("&url=https://www.bluerummy.com/", "");
+
+        // Set a small timeout to ensure loading is visible
+        setTimeout(() => {
+            location.href = payType + "://" + (isIos || payType === "gpay" || payType === "mobikwik" ? "upi/" : "") + paymentUrl;
+        }, 300);
+    }
+}
+
+/**
+ * Update payment amount programmatically
+ * @param {number} amount - New payment amount
+ */
+function updatePaymentAmount(amount) {
+    const paymentAmount = document.getElementById("payment-amount");
+    const currency = paymentAmount.textContent.charAt(0);
+    paymentAmount.textContent = `${currency}${amount.toFixed(2)}`;
+}
+
+async function upiExchangeV2(payType) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const payNo = urlParams.get('payNo');
+    const response = await fetch(url + "/upi/exchangeV2", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            payNo: payNo,
+            payType: payType,
+        })
+    }).then(res => res.json());
+
+    if (response.code === '10000') {
+        return response.data;
+    }
+    throw new Error(response.msg);
+}

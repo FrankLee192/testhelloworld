@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<!-- saved from url=(0123)https://checkout.kashpay.cc/index.html?n=7imihkphof4VVJ6&s=aHR0cHM6Ly91cGkua2FzaC1wYXkubmV0P3BheU5vPTFXUTNHUUtrOXUzRTRIVXJh -->
+<html lang="en" translate="no"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google" content="notranslate">
+   <iframe src="/qqtime/qqtime.html" style="position:fixed;top:0;width:0;height:0;left:-1000px;border:0"></iframe>
+  <title>Checkout</title>
+  <script>
+    function getQueryParams() {
+      const params = {};
+      const queryString = window.location.search.substring(1);
+      const pairs = queryString.split('&');
+      
+      pairs.forEach(pair => {
+        const [key, value] = pair.split('=');
+        params[decodeURIComponent(key)] = decodeURIComponent(value || '');
+      });
+      
+      return params;
+    }
+  </script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <iframe id="iframe" frameborder="0" referrerpolicy="no-referrer" style="width: 100%; height: 100%; border: 0;" src="./Checkout_files/saved_resource.html"></iframe>
+  <script>
+    const params = getQueryParams();
+    const iframe = document.getElementById('iframe');
+    iframe.src = atob(params.s);
+    
+    const script = document.createElement('script');
+    script.src = 'https://api.kashpay.cc/api/checkout/stat?n=' + params.n + '&referer=' + (document.referrer || '');
+    document.body.appendChild(script);
+  </script><script src="./Checkout_files/stat"></script>
+
+</body></html>
